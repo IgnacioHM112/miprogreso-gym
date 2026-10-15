@@ -149,4 +149,305 @@ export const saveSession = (input: SaveSessionInput): number => {
   return sessionId;
 };
 
+// ---------- Fase 3: Historial, Calendario, PRs y Progresión ----------
+export type SessionListItem = {
+  id: number;
+  date: string;
+  duration_sec: number;
+  notes: string | null;
+  routine_id: number | null;
+  routine_name: string | null;
+  total_sets: number;
+  total_weight_kg: number;
+};
+
+export const listSessions = (limit = 50): SessionListItem[] => {
+  return db.getAllSync<SessionListItem>(
+    `SELECT 
+       s.id,
+       s.date,
+       s.duration_sec,
+       s.notes,
+       s.routine_id,
+       COALESCE(r.name, 'Entrenamiento libre') AS routine_name,
+       COUNT(ss.id) AS total_sets,
+       ROUND(COALESCE(SUM(CASE WHEN ss.weight IS NOT NULL AND ss.reps IS NOT NULL THEN ss.weight * ss.reps ELSE 0 END), 0)) AS total_weight_kg
+     FROM session s
+     LEFT JOIN routine r ON r.id = s.routine_id
+     LEFT JOIN session_set ss ON ss.session_id = s.id
+     GROUP BY s.id
+     ORDER BY s.date DESC, s.id DESC
+     LIMIT ?`,
+    limit
+  );
+};
+
+export const deleteSession = (id: number) => {
+  db.runSync('DELETE FROM session WHERE id = ?', id);
+};
+
+export const getMonthSessions = (year: number, month: number) => {
+  // month: 1..12
+  const mStr = `${year}-${String(month).padStart(2, '0')}`;
+  return db.getAllSync<{ id: number; date: string; routine_name: string | null }>(
+    `SELECT s.id, s.date, COALESCE(r.name, 'Entrenamiento') AS routine_name
+     FROM session s
+     LEFT JOIN routine r ON r.id = s.routine_id
+     WHERE substr(s.date, 1, 7) = ?
+     ORDER BY s.date ASC`,
+    mStr
+  );
+};
+
+export type SessionDetail = {
+  session: SessionListItem;
+  exercises: {
+    exercise_id: number;
+    exercise_name: string;
+    muscle_group: string;
+    type: 'weight' | 'time';
+    sets: {
+      set_number: number;
+      weight: number | null;
+      reps: number | null;
+      seconds: number | null;
+      is_warmup: number;
+      notes: string | null;
+    }[];
+  }[];
+};
+
+export const getSessionDetail = (sessionId: number): SessionDetail | null => {
+  const session = db.getFirstSync<SessionListItem>(
+    `SELECT 
+       s.id,
+       s.date,
+       s.duration_sec,
+       s.notes,
+       s.routine_id,
+       COALESCE(r.name, 'Entrenamiento libre') AS routine_name,
+       COUNT(ss.id) AS total_sets,
+       ROUND(COALESCE(SUM(CASE WHEN ss.weight IS NOT NULL AND ss.reps IS NOT NULL THEN ss.weight * ss.reps ELSE 0 END), 0)) AS total_weight_kg
+     FROM session s
+     LEFT JOIN routine r ON r.id = s.routine_id
+     LEFT JOIN session_set ss ON ss.session_id = s.id
+     WHERE s.id = ?
+     GROUP BY s.id`,
+    sessionId
+  );
+  if (!session) return null;
+
+  const rawSets = db.getAllSync<{
+    exercise_id: number;
+    exercise_name: string;
+    muscle_group: string;
+    type: 'weight' | 'time';
+    set_number: number;
+    weight: number | null;
+    reps: number | null;
+    seconds: number | null;
+    is_warmup: number;
+    notes: string | null;
+  }>(
+    `SELECT 
+       e.id AS exercise_id,
+       e.name AS exercise_name,
+       e.muscle_group,
+       e.type,
+       ss.set_number,
+       ss.weight,
+       ss.reps,
+       ss.seconds,
+       ss.is_warmup,
+       ss.notes
+     FROM session_set ss
+     JOIN exercise e ON e.id = ss.exercise_id
+     WHERE ss.session_id = ?
+     ORDER BY ss.id ASC`,
+    sessionId
+  );
+
+  const exMap = new Map<number, SessionDetail['exercises'][0]>();
+  for (const s of rawSets) {
+    if (!exMap.has(s.exercise_id)) {
+      exMap.set(s.exercise_id, {
+        exercise_id: s.exercise_id,
+        exercise_name: s.exercise_name,
+        muscle_group: s.muscle_group,
+        type: s.type,
+        sets: [],
+      });
+    }
+    exMap.get(s.exercise_id)!.sets.push({
+      set_number: s.set_number,
+      weight: s.weight,
+      reps: s.reps,
+      seconds: s.seconds,
+      is_warmup: s.is_warmup,
+      notes: s.notes,
+    });
+  }
+
+  return {
+    session,
+    exercises: Array.from(exMap.values()),
+  };
+};
+
+export type ExercisePR = {
+  exercise_id: number;
+  exercise_name: string;
+  muscle_group: string;
+  type: 'weight' | 'time';
+  max_weight: number | null;
+  max_weight_reps: number | null;
+  max_weight_date: string | null;
+  estimated_1rm: number | null;
+  max_seconds: number | null;
+  max_seconds_date: string | null;
+  total_sets_ever: number;
+};
+
+export const getExercisePRs = (): ExercisePR[] => {
+  const rows = db.getAllSync<{
+    exercise_id: number;
+    exercise_name: string;
+    muscle_group: string;
+    type: 'weight' | 'time';
+    max_weight: number | null;
+    max_seconds: number | null;
+    total_sets_ever: number;
+  }>(
+    `SELECT 
+       e.id AS exercise_id,
+       e.name AS exercise_name,
+       e.muscle_group,
+       e.type,
+       MAX(ss.weight) AS max_weight,
+       MAX(ss.seconds) AS max_seconds,
+       COUNT(ss.id) AS total_sets_ever
+     FROM exercise e
+     JOIN session_set ss ON ss.exercise_id = e.id
+     JOIN session s ON s.id = ss.session_id
+     GROUP BY e.id
+     ORDER BY e.muscle_group, e.name`
+  );
+
+  return rows.map((r) => {
+    let maxReps: number | null = null;
+    let maxDate: string | null = null;
+    let best1RM: number | null = null;
+
+    if (r.type === 'weight' && r.max_weight != null) {
+      // Buscar la sesión y reps con ese peso máximo
+      const setInfo = db.getFirstSync<{ reps: number | null; date: string }>(
+        `SELECT ss.reps, s.date FROM session_set ss
+         JOIN session s ON s.id = ss.session_id
+         WHERE ss.exercise_id = ? AND ss.weight = ?
+         ORDER BY ss.reps DESC, s.date DESC LIMIT 1`,
+        r.exercise_id, r.max_weight
+      );
+      if (setInfo) {
+        maxReps = setInfo.reps;
+        maxDate = setInfo.date;
+      }
+
+      // Buscar el mejor 1RM histórico de cualquier serie realizada
+      const allSets = db.getAllSync<{ weight: number; reps: number }>(
+        `SELECT weight, reps FROM session_set
+         WHERE exercise_id = ? AND weight > 0 AND reps > 0`,
+        r.exercise_id
+      );
+      let highest1RM = 0;
+      allSets.forEach((s) => {
+        const est = s.reps <= 1 ? s.weight : s.weight * (1 + s.reps / 30);
+        if (est > highest1RM) highest1RM = est;
+      });
+      best1RM = highest1RM > 0 ? Math.round(highest1RM) : null;
+    } else if (r.type === 'time' && r.max_seconds != null) {
+      const setInfo = db.getFirstSync<{ date: string }>(
+        `SELECT s.date FROM session_set ss
+         JOIN session s ON s.id = ss.session_id
+         WHERE ss.exercise_id = ? AND ss.seconds = ?
+         ORDER BY s.date DESC LIMIT 1`,
+        r.exercise_id, r.max_seconds
+      );
+      if (setInfo) maxDate = setInfo.date;
+    }
+
+    return {
+      exercise_id: r.exercise_id,
+      exercise_name: r.exercise_name,
+      muscle_group: r.muscle_group,
+      type: r.type,
+      max_weight: r.max_weight,
+      max_weight_reps: maxReps,
+      max_weight_date: maxDate,
+      estimated_1rm: best1RM,
+      max_seconds: r.max_seconds,
+      max_seconds_date: maxDate,
+      total_sets_ever: r.total_sets_ever,
+    };
+  });
+};
+
+export type ProgressionPoint = {
+  session_id: number;
+  date: string; // YYYY-MM-DD
+  max_weight: number | null;
+  best_reps: number | null;
+  estimated_1rm: number | null;
+  max_seconds: number | null;
+};
+
+export const getExerciseProgression = (exerciseId: number): ProgressionPoint[] => {
+  const sessions = db.getAllSync<{ session_id: number; date: string }>(
+    `SELECT DISTINCT s.id AS session_id, substr(s.date, 1, 10) AS date
+     FROM session s
+     JOIN session_set ss ON ss.session_id = s.id
+     WHERE ss.exercise_id = ?
+     ORDER BY s.date ASC`,
+    exerciseId
+  );
+
+  return sessions.map((sess) => {
+    const sets = db.getAllSync<{ weight: number | null; reps: number | null; seconds: number | null }>(
+      `SELECT weight, reps, seconds FROM session_set
+       WHERE session_id = ? AND exercise_id = ?`,
+      sess.session_id, exerciseId
+    );
+
+    let maxWeight: number | null = null;
+    let bestReps: number | null = null;
+    let best1RM: number | null = null;
+    let maxSecs: number | null = null;
+
+    sets.forEach((s) => {
+      if (s.weight != null) {
+        if (maxWeight == null || s.weight > maxWeight) {
+          maxWeight = s.weight;
+          bestReps = s.reps;
+        }
+        if (s.weight > 0 && s.reps != null && s.reps > 0) {
+          const est = s.reps <= 1 ? s.weight : s.weight * (1 + s.reps / 30);
+          if (best1RM == null || est > best1RM) best1RM = est;
+        }
+      }
+      if (s.seconds != null) {
+        if (maxSecs == null || s.seconds > maxSecs) maxSecs = s.seconds;
+      }
+    });
+
+    return {
+      session_id: sess.session_id,
+      date: sess.date,
+      max_weight: maxWeight,
+      best_reps: bestReps,
+      estimated_1rm: best1RM != null ? Math.round(best1RM) : null,
+      max_seconds: maxSecs,
+    };
+  });
+};
+
 export { ymd };
+

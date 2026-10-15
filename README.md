@@ -128,8 +128,8 @@ Construida con la paleta deportiva de alto contraste **Lima Eléctrica**:
 
 - [x] **Fase 0:** Setup del entorno, base de datos SQLite y seed inicial de ejercicios.
 - [x] **Fase 1:** Sistema de diseño Lima Eléctrica, pantalla Hoy, CRUD de rutinas ilimitadas y biblioteca con buscador y filtros.
-- [x] **Fase 2:** Entrenamiento activo interactivo, cronómetro, "última vez", timer de descanso automático con hápticos y guardado de sesiones.
-- [ ] **Fase 3:** Calendario mensual integrado, historial de sesiones, gráficos de progresión, récords personales (PR) y cálculo de 1RM estimado (fórmula Epley).
+- [x] **Fase 2:** Entrenamiento activo interactivo, cronómetro, "última vez", selector táctil de discos/reps sin teclado, timer de descanso automático con hápticos y guardado de sesiones.
+- [x] **Fase 3:** Calendario mensual integrado, historial de sesiones, gráficos de progresión, récords personales (PR) y cálculo de 1RM estimado (fórmula Epley).
 - [ ] **Fase 4:** Registro de peso corporal con evolución temporal, recordatorios locales configurables y exportación/importación de backup (JSON).
 - [ ] **Fase 5:** Pulido estético final, launcher icon nativo y generación de APK instalable independiente mediante EAS Build.
 

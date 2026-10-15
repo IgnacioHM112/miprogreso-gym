@@ -32,11 +32,13 @@ App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, s
 - `src/theme.ts` — colores `C`, fuentes `F`, radios `R`, nombres de días
 - `src/components/ui.tsx` — `Card`, `T` (texto), `Btn` (primary/outline/danger), `Input`
 - `src/components/RestTimerBar.tsx` — barra flotante de descanso (cuenta regresiva, +15s/-15s, saltar)
-- `src/components/ValuePickerSheet.tsx` — selector táctil estilo gimnasio para peso (+/- discos 1.25, 2.5, 5, 10, 20kg), repeticiones y tiempo sin usar teclado
+- `src/components/MonthCalendar.tsx` — calendario mensual interactivo con marcas de entrenamientos en color Lima
+- `src/components/SessionDetailModal.tsx` — modal con desglose completo serie por serie, kilos, reps y notas
+- `src/components/ProgressionChartModal.tsx` — gráfico de barras interactivo de evolución cronológica y cálculo de 1RM
 - `src/services/notifications.ts` — haptics para series/descanso y notificaciones locales en segundo plano
 - `src/stores/workoutStore.ts` — store Zustand para sesión activa, series, cronómetro y timer
 - `src/db/database.ts` — `db`, `initDb()` (tablas + seed), `estimate1RM()`
-- `src/db/repo.ts` — queries (ejercicios, rutinas, plan, settings, stats de semana, getLastExerciseSets, saveSession)
+- `src/db/repo.ts` — queries (ejercicios, rutinas, plan, settings, stats de semana, getLastExerciseSets, saveSession, listSessions, deleteSession, getMonthSessions, getSessionDetail, getExercisePRs, getExerciseProgression)
 - `src/data/tips.ts` — consejos locales + `tipOfTheDay()`
 - `src/app/_layout.tsx` — Stack raíz, carga fuentes Inter/SpaceGrotesk, `initDb()`, rutas
 - `src/app/(tabs)/_layout.tsx` — Tabs: Hoy · Rutinas · Progreso · Ajustes (Ionicons)
@@ -45,14 +47,14 @@ App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, s
 - `src/app/rutina/[id].tsx` — editar nombre, días sugeridos, ejercicios (series/reps o tiempo/descanso, reordenar ↑↓, borrar), eliminar rutina
 - `src/app/biblioteca.tsx` — modal; buscar, filtrar por grupo, crear ejercicio propio, soporte para agregar a rutina o a entrenamiento activo en curso
 - `src/app/entrenamiento.tsx` — **Entrenamiento activo**: cronómetro en tiempo real, celdas táctiles con selector de discos y reps sin teclado (ValuePickerSheet), referencia de "la última vez", botón check ✓ con vibración, descanso automático con aviso sonoro/haptic, agregar/quitar series, notas y modal de felicitación con volumen total
-- `src/app/(tabs)/progreso.tsx` — placeholder (Fase 3)
+- `src/app/(tabs)/progreso.tsx` — **Progreso**: selector de vistas (Calendario & Historial vs Récords & 1RM), calendario mensual con indicador de días entrenados, lista de entrenamientos recientes, buscador y filtros de récords personales por grupo muscular, gráfico de progresión táctil y 1RM (Epley)
 - `src/app/(tabs)/ajustes.tsx` — meta semanal (1-7); resto placeholder
 
 ## Estado / Roadmap
 - [x] Fase 0: setup, dependencias, esquema DB
 - [x] Fase 1: tema Lima, Hoy (+bottom sheet, mini semana, meta, días desde último, consejo), Rutinas CRUD, Biblioteca
 - [x] Fase 2: entrenamiento activo completo, cronómetro continuo, registro de series y pesos, "la última vez", timer de descanso automático con haptics/notificaciones, agregar ejercicios al vuelo, resumen al finalizar
-- [ ] Fase 3: historial de sesiones, resumen semanal detallado, **calendario mensual integrado**, gráficos de progreso por ejercicio, PRs y 1RM estimado
+- [x] Fase 3: historial de sesiones, resumen semanal detallado, **calendario mensual integrado**, gráficos de progreso por ejercicio, PRs y 1RM estimado
 - [ ] Fase 4: peso corporal, notas ampliadas, ajustes, backup JSON (exportar/importar), **recordatorios locales**
 - [ ] Fase 5: íconos, splash screen, build EAS / APK instalable
 
