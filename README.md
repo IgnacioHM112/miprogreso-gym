@@ -1,56 +1,83 @@
-# Welcome to your Expo app 👋
+# 🏋️‍♂️ MiProgreso Gym
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación móvil personal para registro de rutinas de gimnasio, series, pesos, descansos y progreso. **100% gratuita, sin suscripciones y offline-first.**
 
-## Get started
+Diseñada con una estética moderna en tema **Lima Eléctrica** (`#C6F432`), optimizada para usarse con una sola mano en el gimnasio.
 
-1. Install dependencies
+---
 
+## ✨ Características
+
+### 🏠 Pantalla "Hoy"
+- **Mini semana:** Visualización Lunes a Domingo con marcas automáticas (`✓`) en los días entrenados.
+- **Meta semanal:** Progreso en tiempo real contra tu objetivo semanal configurable (ej: `2/3`).
+- **Días desde el último entrenamiento:** Contador motivacional de constancia.
+- **Rutina sugerida y selector rápido:** Sugiere la rutina del día según el calendario o te permite elegir cualquiera al vuelo desde un bottom sheet.
+- **Consejo del día:** Más de 20 recomendaciones saludables y de descanso integradas (sin conexión).
+
+### ⚡ Entrenamiento Activo
+- **Cronómetro continuo:** Duración exacta de la sesión en tiempo real.
+- **Historial de la "Última vez":** Referencia automática del peso y repeticiones de la sesión anterior (`70 kg × 8`) para sobrecarga progresiva.
+- **Registro rápido de series:** Botón de completado amplio (`✓`) con feedback háptico táctil (`expo-haptics`).
+- **Series de calentamiento:** Marcador diferenciado (`C`) para no alterar estadísticas de carga máxima.
+- **Temporizador de descanso integrado:** Cuenta regresiva automática al completar cada serie, con ajustes rápidos (`+15s`, `-15s`, saltar) y avisos hápicos y sonoros.
+- **Flexibilidad en vivo:** Posibilidad de agregar o quitar series y sumar nuevos ejercicios de la biblioteca sobre la marcha si una máquina está ocupada.
+- **Resumen al finalizar:** Cálculo de volumen total de carga levantada en kg y duración total guardada en base de datos local SQLite.
+
+### 📋 Gestión de Rutinas
+- Creación y edición ilimitada de rutinas personalizadas (ej. *Pecho y tríceps*, *Piernas*, *Push/Pull/Legs*).
+- Asignación flexible de días sugeridos de la semana.
+- Configuración por ejercicio: series objetivo, repeticiones o tiempo de ejecución y segundos de descanso.
+- Reordenamiento simple (↑ / ↓) y eliminación.
+
+### 📚 Biblioteca de Ejercicios
+- Más de 30 ejercicios precargados organizados por grupo muscular (*Pecho, Espalda, Piernas, Hombros, Bíceps, Tríceps, Core, Calentamiento y Elongación*).
+- Soporte para ejercicios por peso (`kg × reps`) y por tiempo (`segundos`).
+- Creación de ejercicios propios personalizados.
+
+---
+
+## 🛠️ Stack Tecnológico
+
+- **Framework:** [React Native](https://reactnative.dev/) con [Expo](https://expo.dev/) (SDK 57)
+- **Lenguaje:** TypeScript
+- **Navegación:** Expo Router (File-based routing)
+- **Base de Datos Local:** `expo-sqlite` (SQLite embebida, offline)
+- **Gestión de Estado:** [Zustand](https://github.com/pmndrs/zustand)
+- **Feedback Háptico:** `expo-haptics`
+- **Iconografía y Tipografía:** `@expo/vector-icons` (Ionicons), Inter y Space Grotesk (`expo-google-fonts`)
+
+---
+
+## 🚀 Cómo probar el proyecto
+
+1. **Clonar el repositorio:**
+   ```bash
+   git clone https://github.com/TU_USUARIO/TU_REPO.git
+   cd TU_REPO
+   ```
+
+2. **Instalar dependencias:**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Iniciar Expo:**
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+4. **Abrir en tu teléfono:**
+   - Instalá la app **Expo Go** en tu dispositivo Android o iOS.
+   - Escaneá el código QR que aparece en la terminal.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🗺️ Roadmap de desarrollo
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [x] **Fase 0:** Setup, dependencias, esquema SQLite y seeds iniciales.
+- [x] **Fase 1:** Tema Lima Eléctrica, pantalla Hoy, CRUD de rutinas y biblioteca de ejercicios.
+- [x] **Fase 2:** Entrenamiento activo, cronómetro, registro de series, pesos anteriores, temporizador de descanso con haptics y guardado de sesiones.
+- [ ] **Fase 3:** Calendario mensual integrado, historial detallado de entrenamientos, gráficos de progresión, récords personales (PR) y cálculo de 1RM estimado (fórmula Epley).
+- [ ] **Fase 4:** Registro de peso corporal, recordatorios locales y exportación/importación de backup (JSON).
+- [ ] **Fase 5:** Pulido estético, íconos finales y generación de APK instalable.
