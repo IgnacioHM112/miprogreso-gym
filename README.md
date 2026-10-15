@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="./assets/images/logo.png" alt="MiProgreso Gym Logo" width="130" style="border-radius: 28px; margin-bottom: 16px;" />
+  <img src="./assets/images/banner.jpg" alt="MiProgreso Gym Showcase" width="100%" style="border-radius: 16px; margin-bottom: 24px;" />
 
   # ⚡ MiProgreso Gym
   
@@ -68,6 +68,11 @@ La mayoría de las apps de entrenamiento en las tiendas actuales sufren de lo mi
 ---
 
 ## 🎨 Interfaz y Diseño
+
+<div align="center">
+  <img src="./assets/images/logo.png" alt="App Icon Minimalista" width="96" style="border-radius: 22px; margin-bottom: 12px;" />
+  <p><em>Ícono oficial de la aplicación (formato squircle en titanio y lima eléctrica)</em></p>
+</div>
 
 Construida con la paleta deportiva de alto contraste **Lima Eléctrica**:
 - **Fondo:** Grafito profundo (`#121417`) para descanso visual en interiores.
