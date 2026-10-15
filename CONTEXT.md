@@ -5,6 +5,8 @@
 
 ## Producto
 App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, sin suscripciones, **offline-first** (solo almacenamiento local + backup JSON exportable). Nombre: **MiProgreso Gym**.
+- **Repositorio GitHub:** https://github.com/IgnacioHM112/miprogreso-gym
+
 
 ## Stack
 - React Native + Expo SDK 57, TypeScript, Expo Router (rutas en `src/app/`)
