@@ -25,6 +25,8 @@ App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, s
 | Resumen semanal | Requerido: días que fue, volumen, rutinas hechas |
 | Sync nube | No. Arquitectura permite agregarla luego |
 | Estilo visual | **Opción 1 "Lima eléctrica"**: bg `#121417`, card `#1C1F24`, texto `#E6E8EB`, muted `#8A9099`, primario `#C6F432` (texto sobre primario `#121417`). Tipografía Inter + Space Grotesk (números). Tarjetas redondeadas (radio 20-24), botones grandes. Mockup: brain/.../mockups_hoy.html |
+| Input de peso/reps | **Evitar escribir:** Incorporar selector interactivo táctil (Bottom sheet con rueda/picker y botones de ajuste rápido de discos: `+1.25`, `+2.5`, `+5`, `+10kg`) para cargar peso y reps con un solo toque sin abrir el teclado. |
+
 
 ## Estructura
 - `src/theme.ts` — colores `C`, fuentes `F`, radios `R`, nombres de días
