@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RestTimerBar } from '@/components/RestTimerBar';
 import { Btn, Card, T } from '@/components/ui';
+import { PickerType, ValuePickerSheet } from '@/components/ValuePickerSheet';
 import { ActiveExercise, useWorkoutStore, WorkoutSet } from '@/stores/workoutStore';
 import { C, F, R } from '@/theme';
 
@@ -40,6 +41,16 @@ export default function EntrenamientoActivo() {
   const [elapsedSec, setElapsedSec] = useState(0);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [summaryData, setSummaryData] = useState<{ durationMin: number; totalSets: number; totalKg: number } | null>(null);
+
+  // Estado del selector táctil de peso / reps
+  const [pickerState, setPickerState] = useState<{
+    type: PickerType;
+    title: string;
+    subtitle?: string;
+    currentValue: string;
+    previousValue?: string;
+    onConfirm: (val: string) => void;
+  } | null>(null);
 
   useEffect(() => {
     if (!startTime) return;
@@ -196,6 +207,7 @@ export default function EntrenamientoActivo() {
               onAddSet={() => addSet(exIdx)}
               onRemoveSet={(sIdx) => removeSet(exIdx, sIdx)}
               onRemoveExercise={() => removeExerciseFromWorkout(exIdx)}
+              onOpenPicker={setPickerState}
             />
           ))}
 
@@ -273,6 +285,20 @@ export default function EntrenamientoActivo() {
           </View>
         </View>
       </Modal>
+
+      {/* Selector táctil sin teclado */}
+      {pickerState && (
+        <ValuePickerSheet
+          visible={!!pickerState}
+          type={pickerState.type}
+          title={pickerState.title}
+          subtitle={pickerState.subtitle}
+          currentValue={pickerState.currentValue}
+          previousValue={pickerState.previousValue}
+          onConfirm={pickerState.onConfirm}
+          onClose={() => setPickerState(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -285,6 +311,7 @@ function ExerciseCard({
   onAddSet,
   onRemoveSet,
   onRemoveExercise,
+  onOpenPicker,
 }: {
   exercise: ActiveExercise;
   exerciseIndex: number;
@@ -294,6 +321,14 @@ function ExerciseCard({
   onAddSet: () => void;
   onRemoveSet: (setIdx: number) => void;
   onRemoveExercise: () => void;
+  onOpenPicker: (params: {
+    type: PickerType;
+    title: string;
+    subtitle?: string;
+    currentValue: string;
+    previousValue?: string;
+    onConfirm: (val: string) => void;
+  }) => void;
 }) {
   const isTime = exercise.type === 'time';
 
@@ -375,31 +410,65 @@ function ExerciseCard({
               </T>
             </View>
 
-            {/* Input de Peso o Tiempo */}
+            {/* Celda táctil de Peso o Tiempo */}
             <View style={{ flex: 1, paddingHorizontal: 4 }}>
-              <TextInput
-                style={[s.setInput, set.completed && s.setInputCompleted]}
-                keyboardType="numeric"
-                placeholder={prev?.weight ? String(prev.weight) : isTime ? '60' : '0'}
-                placeholderTextColor={C.muted + '88'}
-                value={isTime ? set.seconds : set.weight}
-                onChangeText={(val) => {
-                  if (isTime) onUpdateSet(setIdx, { seconds: val });
-                  else onUpdateSet(setIdx, { weight: val });
-                }}
-              />
+              <Pressable
+                onPress={() => onOpenPicker({
+                  type: isTime ? 'time' : 'weight',
+                  title: exercise.name,
+                  subtitle: `Serie ${set.set_number} · ${isTime ? 'Tiempo' : 'Carga'}`,
+                  currentValue: isTime ? set.seconds : set.weight,
+                  previousValue: isTime
+                    ? (prev?.seconds != null ? String(prev.seconds) : undefined)
+                    : (prev?.weight != null ? String(prev.weight) : undefined),
+                  onConfirm: (val) => {
+                    if (isTime) onUpdateSet(setIdx, { seconds: val });
+                    else onUpdateSet(setIdx, { weight: val });
+                  },
+                })}
+                style={[s.setInputBtn, set.completed && s.setInputCompleted]}
+              >
+                <T
+                  style={[
+                    s.setInputText,
+                    (isTime ? set.seconds : set.weight)
+                      ? { color: set.completed ? C.primary : C.text }
+                      : { color: C.muted + '88' },
+                  ]}
+                >
+                  {(isTime ? set.seconds : set.weight)
+                    ? (isTime ? `${set.seconds}s` : set.weight)
+                    : prev?.weight != null
+                    ? String(prev.weight)
+                    : isTime
+                    ? '60s'
+                    : '0'}
+                </T>
+              </Pressable>
             </View>
 
-            {/* Input de Reps */}
+            {/* Celda táctil de Reps */}
             <View style={{ flex: 1, paddingHorizontal: 4 }}>
-              <TextInput
-                style={[s.setInput, set.completed && s.setInputCompleted]}
-                keyboardType="numeric"
-                placeholder={prev?.reps ? String(prev.reps) : isTime ? '1' : '10'}
-                placeholderTextColor={C.muted + '88'}
-                value={set.reps}
-                onChangeText={(val) => onUpdateSet(setIdx, { reps: val })}
-              />
+              <Pressable
+                onPress={() => onOpenPicker({
+                  type: 'reps',
+                  title: exercise.name,
+                  subtitle: `Serie ${set.set_number} · Repeticiones`,
+                  currentValue: set.reps,
+                  previousValue: prev?.reps != null ? String(prev.reps) : undefined,
+                  onConfirm: (val) => onUpdateSet(setIdx, { reps: val }),
+                })}
+                style={[s.setInputBtn, set.completed && s.setInputCompleted]}
+              >
+                <T
+                  style={[
+                    s.setInputText,
+                    set.reps ? { color: set.completed ? C.primary : C.text } : { color: C.muted + '88' },
+                  ]}
+                >
+                  {set.reps || (prev?.reps != null ? String(prev.reps) : '10')}
+                </T>
+              </Pressable>
             </View>
 
             {/* Botón de Completado ✓ */}
@@ -514,19 +583,24 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  setInput: {
+  setInputBtn: {
     backgroundColor: C.cardAlt,
-    color: C.text,
     borderRadius: R.sm,
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingHorizontal: 8,
-    textAlign: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.border + '55',
+  },
+  setInputText: {
     fontFamily: F.num,
     fontSize: 15,
+    textAlign: 'center',
   },
   setInputCompleted: {
     backgroundColor: C.card,
-    color: C.primary,
+    borderColor: C.primary + '44',
   },
   checkBtn: {
     width: 32,

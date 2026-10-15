@@ -32,6 +32,7 @@ App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, s
 - `src/theme.ts` — colores `C`, fuentes `F`, radios `R`, nombres de días
 - `src/components/ui.tsx` — `Card`, `T` (texto), `Btn` (primary/outline/danger), `Input`
 - `src/components/RestTimerBar.tsx` — barra flotante de descanso (cuenta regresiva, +15s/-15s, saltar)
+- `src/components/ValuePickerSheet.tsx` — selector táctil estilo gimnasio para peso (+/- discos 1.25, 2.5, 5, 10, 20kg), repeticiones y tiempo sin usar teclado
 - `src/services/notifications.ts` — haptics para series/descanso y notificaciones locales en segundo plano
 - `src/stores/workoutStore.ts` — store Zustand para sesión activa, series, cronómetro y timer
 - `src/db/database.ts` — `db`, `initDb()` (tablas + seed), `estimate1RM()`
@@ -43,7 +44,7 @@ App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, s
 - `src/app/(tabs)/rutinas.tsx` — lista + crear rutina
 - `src/app/rutina/[id].tsx` — editar nombre, días sugeridos, ejercicios (series/reps o tiempo/descanso, reordenar ↑↓, borrar), eliminar rutina
 - `src/app/biblioteca.tsx` — modal; buscar, filtrar por grupo, crear ejercicio propio, soporte para agregar a rutina o a entrenamiento activo en curso
-- `src/app/entrenamiento.tsx` — **Entrenamiento activo**: cronómetro en tiempo real, registro de series (kg/reps o tiempo), referencia de "la última vez", botón check ✓ con vibración, descanso automático con aviso sonoro/haptic, agregar/quitar series, notas y modal de felicitación con volumen total
+- `src/app/entrenamiento.tsx` — **Entrenamiento activo**: cronómetro en tiempo real, celdas táctiles con selector de discos y reps sin teclado (ValuePickerSheet), referencia de "la última vez", botón check ✓ con vibración, descanso automático con aviso sonoro/haptic, agregar/quitar series, notas y modal de felicitación con volumen total
 - `src/app/(tabs)/progreso.tsx` — placeholder (Fase 3)
 - `src/app/(tabs)/ajustes.tsx` — meta semanal (1-7); resto placeholder
 
