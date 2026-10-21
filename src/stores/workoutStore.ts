@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import {
   Exercise,
+  getDefaultRestSeconds,
   getLastExerciseSets,
   PlanExercise,
   PreviousSet,
@@ -313,7 +314,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       name: exercise.name,
       muscle_group: exercise.muscle_group,
       type: exercise.type,
-      rest_seconds: exercise.type === 'time' ? 30 : 90,
+      rest_seconds: exercise.type === 'time' ? 30 : getDefaultRestSeconds(),
       target_sets: count,
       target_reps: exercise.type === 'time' ? null : '10',
       target_seconds: exercise.type === 'time' ? 60 : null,

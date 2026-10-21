@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BodyWeightSection } from '@/components/BodyWeightSection';
 import { MonthCalendar } from '@/components/MonthCalendar';
 import { ProgressionChartModal } from '@/components/ProgressionChartModal';
 import { SessionDetailModal } from '@/components/SessionDetailModal';
@@ -12,7 +13,7 @@ import { ExercisePR, getExercisePRs, listSessions, SessionListItem } from '@/db/
 import { vibrateImpact } from '@/services/notifications';
 import { C, F, R } from '@/theme';
 
-type TabView = 'calendar' | 'records';
+type TabView = 'calendar' | 'records' | 'weight';
 const GROUPS = ['Todos', 'Pecho', 'Espalda', 'Piernas', 'Hombros', 'Bíceps', 'Tríceps', 'Core'];
 
 export default function Progreso() {
@@ -51,7 +52,7 @@ export default function Progreso() {
         {/* Cabecera */}
         <View>
           <T size={24} bold>Progreso & Historial</T>
-          <T muted size={13}>Evolución de tus entrenamientos, marcas y récords personales.</T>
+          <T muted size={13}>Evolución de tus entrenamientos, marcas y peso corporal.</T>
         </View>
 
         {/* Selector de pestañas */}
@@ -65,11 +66,11 @@ export default function Progreso() {
           >
             <Ionicons
               name="calendar-outline"
-              size={16}
+              size={15}
               color={currentTab === 'calendar' ? C.onPrimary : C.muted}
             />
-            <T size={13} bold style={{ color: currentTab === 'calendar' ? C.onPrimary : C.muted }}>
-              Calendario & Historial
+            <T size={12} bold style={{ color: currentTab === 'calendar' ? C.onPrimary : C.muted }}>
+              Calendario
             </T>
           </Pressable>
 
@@ -82,17 +83,35 @@ export default function Progreso() {
           >
             <Ionicons
               name="trophy-outline"
-              size={16}
+              size={15}
               color={currentTab === 'records' ? C.onPrimary : C.muted}
             />
-            <T size={13} bold style={{ color: currentTab === 'records' ? C.onPrimary : C.muted }}>
-              Récords & 1RM
+            <T size={12} bold style={{ color: currentTab === 'records' ? C.onPrimary : C.muted }}>
+              Récords
+            </T>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              vibrateImpact();
+              setCurrentTab('weight');
+            }}
+            style={[s.tabBtn, currentTab === 'weight' && s.tabBtnActive]}
+          >
+            <Ionicons
+              name="scale-outline"
+              size={15}
+              color={currentTab === 'weight' ? C.onPrimary : C.muted}
+            />
+            <T size={12} bold style={{ color: currentTab === 'weight' ? C.onPrimary : C.muted }}>
+              Peso Corporal
             </T>
           </Pressable>
         </View>
 
         {/* VISTA 1: CALENDARIO E HISTORIAL */}
         {currentTab === 'calendar' && (
+
           <View style={{ gap: 16 }}>
             {/* Calendario mensual interactivo */}
             <MonthCalendar onSelectDateSession={(id) => setSelectedSessionId(id)} />
@@ -245,6 +264,9 @@ export default function Progreso() {
             )}
           </View>
         )}
+
+        {/* VISTA 3: PESO CORPORAL */}
+        {currentTab === 'weight' && <BodyWeightSection />}
       </ScrollView>
 
       {/* Modal de Detalle de Sesión */}

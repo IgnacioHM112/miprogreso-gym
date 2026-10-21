@@ -40,7 +40,7 @@ export const addToPlan = (routineId: number, exercise: Exercise) => {
   const isTime = exercise.type === 'time';
   db.runSync(
     'INSERT INTO plan_exercise (routine_id, exercise_id, position, target_sets, target_reps, target_seconds, rest_seconds) VALUES (?,?,?,?,?,?,?)',
-    routineId, exercise.id, pos, isTime ? 1 : 3, isTime ? null : '8-12', isTime ? 60 : null, isTime ? 30 : 90);
+    routineId, exercise.id, pos, isTime ? 1 : 3, isTime ? null : '8-12', isTime ? 60 : null, isTime ? 30 : getDefaultRestSeconds());
 };
 
 export const updatePlanItem = (id: number, f: { target_sets: number; target_reps: string | null; target_seconds: number | null; rest_seconds: number }) =>
@@ -449,5 +449,241 @@ export const getExerciseProgression = (exerciseId: number): ProgressionPoint[] =
   });
 };
 
+// ---------- Peso Corporal ----------
+export type BodyWeightEntry = {
+  id: number;
+  date: string; // YYYY-MM-DD
+  kg: number;
+};
+
+export const listBodyWeights = (): BodyWeightEntry[] =>
+  db.getAllSync<BodyWeightEntry>('SELECT id, substr(date, 1, 10) AS date, kg FROM body_weight ORDER BY date DESC, id DESC');
+
+export const addBodyWeight = (kg: number, date?: string) => {
+  const targetDate = date ?? ymd(new Date());
+  // Si ya hay un peso registrado en esa fecha, lo actualizamos; sino, insertamos uno nuevo
+  const existing = db.getFirstSync<{ id: number }>('SELECT id FROM body_weight WHERE substr(date, 1, 10) = ?', targetDate);
+  if (existing) {
+    db.runSync('UPDATE body_weight SET kg = ?, date = ? WHERE id = ?', kg, targetDate, existing.id);
+    return existing.id;
+  }
+  return db.runSync('INSERT INTO body_weight (date, kg) VALUES (?, ?)', targetDate, kg).lastInsertRowId;
+};
+
+export const deleteBodyWeight = (id: number) =>
+  db.runSync('DELETE FROM body_weight WHERE id = ?', id);
+
+export const getLatestBodyWeight = (): BodyWeightEntry | null =>
+  db.getFirstSync<BodyWeightEntry>('SELECT id, substr(date, 1, 10) AS date, kg FROM body_weight ORDER BY date DESC, id DESC LIMIT 1') ?? null;
+
+export const getBodyWeightProgression = (): BodyWeightEntry[] =>
+  db.getAllSync<BodyWeightEntry>('SELECT id, substr(date, 1, 10) AS date, kg FROM body_weight ORDER BY date ASC, id ASC');
+
+export type BodyWeightStats = {
+  latest: number | null;
+  latestDate: string | null;
+  previous: number | null;
+  diff: number | null; // latest - previous
+  min: number | null;
+  max: number | null;
+  totalEntries: number;
+};
+
+export const getBodyWeightStats = (): BodyWeightStats => {
+  const all = listBodyWeights();
+  if (all.length === 0) {
+    return { latest: null, latestDate: null, previous: null, diff: null, min: null, max: null, totalEntries: 0 };
+  }
+  const latest = all[0].kg;
+  const latestDate = all[0].date;
+  const previous = all.length > 1 ? all[1].kg : null;
+  const diff = previous != null ? Math.round((latest - previous) * 10) / 10 : null;
+
+  let min = latest;
+  let max = latest;
+  all.forEach((e) => {
+    if (e.kg < min) min = e.kg;
+    if (e.kg > max) max = e.kg;
+  });
+
+  return {
+    latest,
+    latestDate,
+    previous,
+    diff,
+    min,
+    max,
+    totalEntries: all.length,
+  };
+};
+
+// ---------- Ajustes Específicos ----------
+export const getDefaultRestSeconds = (): number =>
+  Number(getSetting('default_rest_seconds', '90'));
+
+export const setDefaultRestSeconds = (sec: number) =>
+  setSetting('default_rest_seconds', String(sec));
+
+export const getHapticsEnabled = (): boolean =>
+  getSetting('haptics_enabled', 'true') === 'true';
+
+export const setHapticsEnabled = (enabled: boolean) =>
+  setSetting('haptics_enabled', enabled ? 'true' : 'false');
+
+export const getReminderSettings = () => ({
+  enabled: getSetting('reminder_enabled', 'false') === 'true',
+  time: getSetting('reminder_time', '19:00'),
+  days: parseDays(getSetting('reminder_days', '1,2,3,4,5')), // Lun a Vie por defecto
+});
+
+export const setReminderSettings = (s: { enabled: boolean; time: string; days: number[] }) => {
+  setSetting('reminder_enabled', s.enabled ? 'true' : 'false');
+  setSetting('reminder_time', s.time);
+  setSetting('reminder_days', s.days.sort().join(','));
+};
+
+// ---------- Backup & Restore (JSON) ----------
+export type GymBackupPayload = {
+  version: number;
+  app: string;
+  exported_at: string;
+  exercises: Exercise[];
+  routines: Routine[];
+  plan_exercises: any[];
+  sessions: any[];
+  session_sets: any[];
+  body_weights: BodyWeightEntry[];
+  settings: { key: string; value: string }[];
+};
+
+export const exportDatabaseToJson = (): string => {
+  const exercises = db.getAllSync<Exercise>('SELECT * FROM exercise');
+  const routines = db.getAllSync<Routine>('SELECT * FROM routine');
+  const plan_exercises = db.getAllSync<any>('SELECT * FROM plan_exercise');
+  const sessions = db.getAllSync<any>('SELECT * FROM session');
+  const session_sets = db.getAllSync<any>('SELECT * FROM session_set');
+  const body_weights = db.getAllSync<BodyWeightEntry>('SELECT * FROM body_weight');
+  const settings = db.getAllSync<{ key: string; value: string }>('SELECT * FROM settings');
+
+  const payload: GymBackupPayload = {
+    version: 1,
+    app: 'MiProgreso Gym',
+    exported_at: new Date().toISOString(),
+    exercises,
+    routines,
+    plan_exercises,
+    sessions,
+    session_sets,
+    body_weights,
+    settings,
+  };
+
+  return JSON.stringify(payload, null, 2);
+};
+
+export const importDatabaseFromJson = (jsonStr: string): { success: boolean; message: string; counts?: any } => {
+  try {
+    const data = JSON.parse(jsonStr) as GymBackupPayload;
+    if (!data || !Array.isArray(data.exercises) || !Array.isArray(data.routines)) {
+      return { success: false, message: 'El archivo no contiene un formato de respaldo válido de MiProgreso Gym.' };
+    }
+
+    db.withTransactionSync(() => {
+      // 1. Limpiar datos existentes en orden de FK
+      db.runSync('DELETE FROM session_set');
+      db.runSync('DELETE FROM session');
+      db.runSync('DELETE FROM plan_exercise');
+      db.runSync('DELETE FROM routine');
+      db.runSync('DELETE FROM exercise');
+      db.runSync('DELETE FROM body_weight');
+      db.runSync('DELETE FROM settings');
+
+      // 2. Insertar ejercicios
+      for (const e of data.exercises) {
+        db.runSync(
+          'INSERT INTO exercise (id, name, muscle_group, type, is_custom, notes) VALUES (?, ?, ?, ?, ?, ?)',
+          e.id, e.name, e.muscle_group, e.type ?? 'weight', e.is_custom ?? 0, e.notes ?? null
+        );
+      }
+
+      // 3. Insertar rutinas
+      for (const r of data.routines) {
+        db.runSync(
+          'INSERT INTO routine (id, name, weekdays, position, color) VALUES (?, ?, ?, ?, ?)',
+          r.id, r.name, r.weekdays ?? null, r.position ?? 0, r.color ?? null
+        );
+      }
+
+      // 4. Insertar plan_exercise
+      if (Array.isArray(data.plan_exercises)) {
+        for (const pe of data.plan_exercises) {
+          db.runSync(
+            'INSERT INTO plan_exercise (id, routine_id, exercise_id, position, target_sets, target_reps, target_seconds, rest_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            pe.id, pe.routine_id, pe.exercise_id, pe.position, pe.target_sets ?? 3, pe.target_reps ?? '8-12', pe.target_seconds ?? null, pe.rest_seconds ?? 90
+          );
+        }
+      }
+
+      // 5. Insertar sesiones
+      if (Array.isArray(data.sessions)) {
+        for (const s of data.sessions) {
+          db.runSync(
+            'INSERT INTO session (id, date, routine_id, duration_sec, notes) VALUES (?, ?, ?, ?, ?)',
+            s.id, s.date, s.routine_id ?? null, s.duration_sec ?? null, s.notes ?? null
+          );
+        }
+      }
+
+      // 6. Insertar series de sesiones
+      if (Array.isArray(data.session_sets)) {
+        for (const ss of data.session_sets) {
+          db.runSync(
+            'INSERT INTO session_set (id, session_id, exercise_id, set_number, weight, reps, seconds, is_warmup, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            ss.id, ss.session_id, ss.exercise_id, ss.set_number, ss.weight ?? null, ss.reps ?? null, ss.seconds ?? null, ss.is_warmup ?? 0, ss.notes ?? null
+          );
+        }
+      }
+
+      // 7. Insertar peso corporal
+      if (Array.isArray(data.body_weights)) {
+        for (const bw of data.body_weights) {
+          db.runSync(
+            'INSERT INTO body_weight (id, date, kg) VALUES (?, ?, ?)',
+            bw.id, bw.date, bw.kg
+          );
+        }
+      }
+
+      // 8. Insertar settings
+      if (Array.isArray(data.settings)) {
+        for (const st of data.settings) {
+          db.runSync(
+            'INSERT INTO settings (key, value) VALUES (?, ?)',
+            st.key, st.value
+          );
+        }
+      }
+    });
+
+    return {
+      success: true,
+      message: 'Copia de seguridad restaurada exitosamente.',
+      counts: {
+        ejercicios: data.exercises.length,
+        rutinas: data.routines.length,
+        sesiones: data.sessions?.length ?? 0,
+        series: data.session_sets?.length ?? 0,
+        pesos: data.body_weights?.length ?? 0,
+      },
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `Error al procesar el archivo de copia: ${err?.message || 'Formato incorrecto'}`,
+    };
+  }
+};
+
 export { ymd };
+
 
