@@ -48,3 +48,6 @@ example
 *.db-wal
 *.db-shm
 
+# Android build artifacts
+*.apk
+

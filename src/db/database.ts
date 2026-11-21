@@ -73,6 +73,41 @@ export function initDb() {
       date TEXT NOT NULL,
       kg REAL NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS activity (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      status TEXT NOT NULL,
+      distance_m REAL NOT NULL DEFAULT 0,
+      moving_sec INTEGER NOT NULL DEFAULT 0,
+      elapsed_sec INTEGER NOT NULL DEFAULT 0,
+      avg_pace_sec_km REAL,
+      elev_gain_m REAL NOT NULL DEFAULT 0,
+      kcal INTEGER NOT NULL DEFAULT 0,
+      title TEXT,
+      notes TEXT
+    );
+    CREATE TABLE IF NOT EXISTS activity_point (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      activity_id INTEGER NOT NULL REFERENCES activity(id) ON DELETE CASCADE,
+      ts INTEGER NOT NULL,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      alt REAL,
+      accuracy REAL,
+      speed REAL,
+      segment INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS activity_lap (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      activity_id INTEGER NOT NULL REFERENCES activity(id) ON DELETE CASCADE,
+      idx INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      distance_m REAL NOT NULL,
+      duration_sec INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_activity_point_aid ON activity_point(activity_id);
   `);
 
   const count = db.getFirstSync<{ c: number }>('SELECT COUNT(*) c FROM exercise');

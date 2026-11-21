@@ -6,14 +6,15 @@
 ## Producto
 App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, sin suscripciones, **offline-first** (solo almacenamiento local + backup JSON exportable). Nombre: **MiProgreso Gym**.
 - **Repositorio GitHub:** https://github.com/IgnacioHM112/miprogreso-gym
-- **Ubicación local:** `C:\Users\ignam\Desktop\miprogreso-gym`
+- **Ubicación local:** `C:\Users\ignam\Desktop\Proyectos\miprogreso-gym`
 
 
 
 ## Stack
 - React Native + Expo SDK 57, TypeScript, Expo Router (rutas en `src/app/`)
 - `expo-sqlite` (API síncrona) — DB `gym.db`
-- Zustand (estado), expo-haptics, expo-notifications, expo-file-system, expo-sharing
+- Zustand (estado), `expo-haptics`, `expo-notifications`, `expo-file-system`, `expo-sharing`, `expo-document-picker`
+- GPS & Mapas (Android): `expo-location`, `expo-task-manager`, `@maplibre/maplibre-react-native` (estilo oscuro OpenFreeMap sin API key)
 - drizzle-orm instalado pero **no usado** (SQL directo)
 - Alias `@/` → `src/`
 
@@ -33,27 +34,37 @@ App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, s
 ## Estructura
 - `src/theme.ts` — colores `C`, fuentes `F`, radios `R`, nombres de días
 - `src/components/ui.tsx` — `Card`, `T` (texto), `Btn` (primary/outline/danger), `Input`
-- `src/components/RestTimerBar.tsx` — barra flotante de descanso (cuenta regresiva, +15s/-15s, saltar)
-- `src/components/MonthCalendar.tsx` — calendario mensual interactivo con marcas de entrenamientos en color Lima
+- `src/components/RestTimerBar.tsx` — barra flotante de descanso (cuenta regresiva, +15s/-15s, saltar; texto truncado y safe-area)
+- `src/components/RouteMap.tsx` — mapa interactivo MapLibre (modo en vivo y resumen coloreado por ritmo con marcadores por km tocables y fallback defensivo)
+- `src/components/MonthCalendar.tsx` — calendario mensual interactivo con marcas de entrenamientos y salidas GPS en color Lima
 - `src/components/SessionDetailModal.tsx` — modal con desglose completo serie por serie, kilos, reps y notas
 - `src/components/ProgressionChartModal.tsx` — gráfico de barras interactivo de evolución cronológica y cálculo de 1RM
 - `src/components/AddWeightModal.tsx` — modal táctil de registro rápido de peso corporal (con chips +-1kg, fecha y visualización)
 - `src/components/BodyWeightSection.tsx` — sección completa de evolución de peso: resumen con delta/mín/máx, gráfico interactivo e historial con eliminación
-- `src/services/notifications.ts` — haptics para series/descanso, notificaciones locales y recordatorios semanales programables
+- `src/services/notifications.ts` — haptics para series/descanso, canales Android `rest-alarm-v1` / `rest-vibrate-v1` con sonido `rest_alarm.wav`, vibración intensa, prueba de alarma y recordatorios semanales
+- `src/services/geo.ts` — Haversine, filtro GPS, formato de ritmo/duración/km, kcal, sugerencia Correr↔Caminar, colores por ritmo, GeoJSON de ruta/marcadores km, PRs con ventana deslizante y perfil de elevación
+- `src/services/backgroundLocation.ts` — tarea `miprogreso-background-location` (`expo-task-manager` + `expo-location`) para foreground service Android
+- `src/services/gpx.ts` — generación y compartición de archivos GPX 1.1 (`expo-file-system/legacy` + `expo-sharing`)
 - `src/services/backup.ts` — exportación e importación completa de base de datos a archivo JSON (`expo-file-system`, `expo-sharing`, `expo-document-picker`)
 - `src/stores/workoutStore.ts` — store Zustand para sesión activa, series, cronómetro y timer
-- `src/db/database.ts` — `db`, `initDb()` (tablas + seed), `estimate1RM()`
-- `src/db/repo.ts` — queries (ejercicios, rutinas, plan, settings, stats de semana, getLastExerciseSets, saveSession, listSessions, deleteSession, getMonthSessions, getSessionDetail, getExercisePRs, getExerciseProgression, listBodyWeights, addBodyWeight, deleteBodyWeight, getBodyWeightStats, exportDatabaseToJson, importDatabaseFromJson)
+- `src/stores/runStore.ts` — store Zustand para modo runner (GPS en vivo/segundo plano, auto-pausa, auto-splits 1 km, vueltas manuales, recuperación tras cierre)
+- `src/db/database.ts` — `db`, `initDb()` (tablas de gym + `activity`, `activity_point`, `activity_lap` + seed), `estimate1RM()`
+- `src/db/repo.ts` — queries de gym, meta semanal y días entrenados (incluyendo salidas GPS), ajustes (`rest_alarm_sound`, `auto_pause_enabled`), backup JSON v2 y reset
+- `src/db/activityRepo.ts` — CRUD de actividades GPS, puntos, parciales, estadísticas semanales, barras diarias, calendario mensual y PRs (1K/5K/10K/más larga)
 - `src/data/tips.ts` — consejos locales + `tipOfTheDay()`
-- `src/app/_layout.tsx` — Stack raíz, carga fuentes Inter/SpaceGrotesk, `initDb()`, rutas
-- `src/app/(tabs)/_layout.tsx` — Tabs: Hoy · Rutinas · Progreso · Ajustes (Ionicons)
+- `assets/sounds/rest_alarm.wav` — tono de alarma personalizado para el fin del descanso
+- `src/app/_layout.tsx` — Stack raíz, registro de tarea background GPS, recuperación de actividad sin finalizar, fuentes Inter/SpaceGrotesk, `initDb()`, rutas
+- `src/app/(tabs)/_layout.tsx` — Tabs: Hoy · Rutinas · Correr · Progreso · Ajustes (Ionicons)
 - `src/app/(tabs)/index.tsx` — **Hoy**: banner entrenamiento en curso, mini semana, meta semanal, días desde último, rutina sugerida/elegida, bottom sheet "Cambiar rutina", consejo del día
 - `src/app/(tabs)/rutinas.tsx` — lista + crear rutina
+- `src/app/(tabs)/correr.tsx` — **Correr**: selector Correr/Caminar, estado GPS, toggle auto-pausa, resumen semanal con barras L–D, PRs (1K/5K/10K/más larga) e historial de salidas
 - `src/app/rutina/[id].tsx` — editar nombre, días sugeridos, ejercicios (series/reps o tiempo/descanso, reordenar ↑↓, borrar), eliminar rutina
 - `src/app/biblioteca.tsx` — modal; buscar, filtrar por grupo, crear ejercicio propio, soporte para agregar a rutina o a entrenamiento activo en curso
 - `src/app/entrenamiento.tsx` — **Entrenamiento activo**: cronómetro en tiempo real, celdas táctiles con selector de discos y reps sin teclado (ValuePickerSheet), referencia de "la última vez", botón check ✓ con vibración, descanso automático con aviso sonoro/haptic, agregar/quitar series, notas y modal de felicitación con volumen total
-- `src/app/(tabs)/progreso.tsx` — **Progreso**: 3 vistas seleccionables (Calendario & Historial, Récords & 1RM, y **Peso Corporal** con gráfico e historial)
-- `src/app/(tabs)/ajustes.tsx` — **Ajustes**: meta semanal (1-7), descanso predeterminado (45s-180s), respuesta táctil ON/OFF, recordatorios locales semanales y horarios, Backup & Restore JSON (exportar/importar) y link a GitHub.
+- `src/app/carrera.tsx` — **Actividad en vivo**: distancia grande, tiempo activo, ritmo actual/medio, kcal/desnivel, mapa en vivo expandible, indicador de segundo plano/auto-pausa, vuelta manual, pausa/reanudación y sugerencia Correr↔Caminar al finalizar
+- `src/app/actividad/[id].tsx` — **Detalle de actividad**: mapa interactivo MapLibre coloreado por ritmo con marcadores por km tocables, métricas, parciales, perfil de elevación, exportación GPX y eliminación
+- `src/app/(tabs)/progreso.tsx` — **Progreso**: 3 vistas seleccionables (Calendario & Historial con salidas GPS, Récords & 1RM, y **Peso Corporal** con gráfico e historial)
+- `src/app/(tabs)/ajustes.tsx` — **Ajustes**: meta semanal (1-7), descanso predeterminado (45s-180s), respuesta táctil ON/OFF, alarma sonora de descanso ON/OFF + botón Probar alarma, recordatorios locales semanales y horarios, Backup & Restore JSON v2 (exportar/importar), botón "Vaciar todos los registros" y link a GitHub.
 
 ## Estado / Roadmap
 - [x] Fase 0: setup, dependencias, esquema DB
@@ -62,9 +73,9 @@ App móvil personal (Android + iOS) para registrar rutina de gimnasio. Gratis, s
 - [x] Fase 3: historial de sesiones, resumen semanal detallado, **calendario mensual integrado**, gráficos de progreso por ejercicio, PRs y 1RM estimado
 - [x] Fase 4: peso corporal (registro, delta, mín/máx, gráfico e historial), ajustes avanzados (descanso por defecto, hápticos), recordatorios locales programables, backup JSON exportar/restaurar
 - [x] Fase 5: branding oficial en `app.json` (nombre "MiProgreso Gym", slug, bundle/package `com.ignaciohm.miprogresogym`, adaptive icon, splash `#121417`), configuración `eas.json` para build APK directo.
+- [x] Fase 6 (Modo Runner + Alarma de descanso): arreglo de `RestTimerBar` + alarma sonora/vibración con pantalla apagada, pestaña **Correr** con GPS en primer/segundo plano, recuperación tras cierre, auto-pausa, mapa MapLibre coloreado por ritmo, PRs (1K/5K/10K/más larga), perfil de elevación, integración con calendario/meta semanal, backup JSON v2 y exportación GPX.
 
 ## Notas conocidas
 - `npx tsc --noEmit` limpio (0 errores).
-- `npx expo export --platform android` compila OK.
-- En Expo Go (Android), `expo-notifications` no incluye módulos remotos nativos (`ExpoTopicSubscriptionModule`), por lo que `src/services/notifications.ts` carga el módulo protegido con try/catch: en Expo Go opera con Haptics y timer en pantalla sin crasheos, y se activará de forma nativa cuando se genere un build de producción (APK/EAS).
-- Correr: `npx expo start` y recargar en Expo Go.
+- `npx eslint` sobre los archivos del Modo Runner y Fase 0 limpio (0 errores); `npx expo lint` global reporta errores heredados previos en componentes antiguos sin tocar.
+- Las funcionalidades nativas (MapLibre, ubicación en segundo plano y sonido `rest_alarm.wav`) requieren build nativo (`npx expo run:android` para desarrollo o `npx eas-cli@latest build --profile preview --platform android` para APK standalone); en Expo Go y Web operan con fallbacks defensivos sin crashear.

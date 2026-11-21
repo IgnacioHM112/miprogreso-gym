@@ -56,8 +56,14 @@ export function RestTimerBar() {
           <View style={s.iconWrapper}>
             <Ionicons name="timer-outline" size={20} color={C.onPrimary} />
           </View>
-          <View>
-            <T size={12} muted style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <T
+              size={12}
+              muted
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              style={{ textTransform: 'uppercase', letterSpacing: 0.5 }}
+            >
               Descanso {restTimer.exerciseName ? `· ${restTimer.exerciseName}` : ''}
             </T>
             <T size={26} style={{ fontFamily: F.num, color: C.primary, lineHeight: 30 }}>
@@ -108,13 +114,16 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    gap: 8,
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
   left: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   iconWrapper: {
     width: 36,
@@ -123,16 +132,20 @@ const s = StyleSheet.create({
     backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    flexShrink: 0,
   },
   adjustBtn: {
     backgroundColor: C.card,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 7,
+    minWidth: 42,
+    alignItems: 'center',
     borderRadius: R.sm,
     borderWidth: 1,
     borderColor: C.border,

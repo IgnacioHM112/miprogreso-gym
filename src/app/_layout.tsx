@@ -1,3 +1,5 @@
+import '@/services/backgroundLocation';
+
 import { Inter_400Regular, Inter_500Medium, Inter_700Bold, useFonts } from '@expo-google-fonts/inter';
 import { SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
@@ -6,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { initDb } from '@/db/database';
+import { useRunStore } from '@/stores/runStore';
 import { C, F } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -16,6 +19,9 @@ const navTheme = { ...DarkTheme, colors: { ...DarkTheme.colors, background: C.bg
 export default function RootLayout() {
   const [loaded] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_700Bold, SpaceGrotesk_700Bold });
   useEffect(() => { if (loaded) SplashScreen.hideAsync(); }, [loaded]);
+  useEffect(() => {
+    void useRunStore.getState().recoverUnfinishedActivity();
+  }, []);
   if (!loaded) return null;
 
   return (
@@ -26,6 +32,8 @@ export default function RootLayout() {
         <Stack.Screen name="rutina/[id]" options={{ title: 'Editar rutina' }} />
         <Stack.Screen name="biblioteca" options={{ title: 'Biblioteca de ejercicios', presentation: 'modal' }} />
         <Stack.Screen name="entrenamiento" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="carrera" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="actividad/[id]" options={{ title: 'Detalle de actividad' }} />
       </Stack>
     </ThemeProvider>
   );

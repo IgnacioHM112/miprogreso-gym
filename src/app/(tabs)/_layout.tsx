@@ -19,6 +19,7 @@ export default function TabsLayout() {
       }}>
       <Tabs.Screen name="index" options={{ title: 'Hoy', tabBarIcon: icon('flash') }} />
       <Tabs.Screen name="rutinas" options={{ title: 'Rutinas', tabBarIcon: icon('list') }} />
+      <Tabs.Screen name="correr" options={{ title: 'Correr', tabBarIcon: icon('walk') }} />
       <Tabs.Screen name="progreso" options={{ title: 'Progreso', tabBarIcon: icon('stats-chart') }} />
       <Tabs.Screen name="ajustes" options={{ title: 'Ajustes', tabBarIcon: icon('settings-outline') }} />
     </Tabs>

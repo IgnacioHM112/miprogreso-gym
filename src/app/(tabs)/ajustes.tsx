@@ -17,14 +17,18 @@ import {
   getDefaultRestSeconds,
   getHapticsEnabled,
   getReminderSettings,
+  getRestAlarmSoundEnabled,
   getSetting,
+  resetAllUserRecords,
   setDefaultRestSeconds,
   setHapticsEnabled,
   setReminderSettings,
+  setRestAlarmSoundEnabled,
   setSetting,
 } from '@/db/repo';
 import { exportBackup, importBackup } from '@/services/backup';
-import { syncWorkoutReminders, vibrateImpact, vibrateSuccess } from '@/services/notifications';
+import { syncWorkoutReminders, testRestAlarm, vibrateImpact, vibrateSuccess } from '@/services/notifications';
+import { useWorkoutStore } from '@/stores/workoutStore';
 import { C, F, R } from '@/theme';
 
 const REST_PRESETS = [45, 60, 90, 120, 180];
@@ -46,8 +50,9 @@ export default function Ajustes() {
   // 2. Descanso predeterminado
   const [defaultRest, setDefaultRest] = useState(getDefaultRestSeconds());
 
-  // 3. Vibración / Haptics
+  // 3. Vibración / Haptics y alarma de descanso
   const [haptics, setHaptics] = useState(getHapticsEnabled());
+  const [restAlarmSound, setRestAlarmSound] = useState(getRestAlarmSoundEnabled());
 
   // 4. Recordatorios locales
   const reminderInitial = getReminderSettings();
@@ -58,6 +63,28 @@ export default function Ajustes() {
   // Estados de carga para backup
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const cancelWorkout = useWorkoutStore((st) => st.cancelWorkout);
+
+  // Manejo de Empezar de Cero (Vaciar todos los registros)
+  const handleResetAll = () => {
+    Alert.alert(
+      'Empezar de cero',
+      '¿Seguro que querés borrar todas las rutinas, entrenamientos, récords y registros de peso corporal? Se conservará únicamente el catálogo base de ejercicios.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, vaciar todo',
+          style: 'destructive',
+          onPress: () => {
+            cancelWorkout();
+            resetAllUserRecords();
+            vibrateSuccess();
+            Alert.alert('Registros vaciados', 'La aplicación quedó limpia para empezar desde cero.');
+          },
+        },
+      ]
+    );
+  };
 
   // Manejo de Meta semanal
   const changeGoal = (n: number) => {
@@ -79,6 +106,17 @@ export default function Ajustes() {
     setHaptics(val);
     setHapticsEnabled(val);
     if (val) vibrateSuccess();
+  };
+
+  // Manejo de Alarma sonora en descanso
+  const handleToggleRestAlarm = (val: boolean) => {
+    vibrateImpact();
+    setRestAlarmSound(val);
+    setRestAlarmSoundEnabled(val);
+  };
+
+  const handleTestRestAlarm = async () => {
+    await testRestAlarm();
   };
 
   // Manejo de Recordatorios
@@ -148,7 +186,7 @@ export default function Ajustes() {
                 const counts = res.counts;
                 Alert.alert(
                   'Restauración exitosa',
-                  `Datos recuperados correctamente:\n• ${counts?.rutinas ?? 0} rutinas\n• ${counts?.sesiones ?? 0} sesiones\n• ${counts?.pesos ?? 0} registros de peso`
+                  `Datos recuperados correctamente:\n• ${counts?.rutinas ?? 0} rutinas\n• ${counts?.sesiones ?? 0} sesiones\n• ${counts?.actividades ?? 0} salidas GPS\n• ${counts?.pesos ?? 0} registros de peso`
                 );
               } else if (res.message !== 'No se seleccionó ningún archivo.') {
                 Alert.alert('Error al restaurar', res.message);
@@ -219,7 +257,7 @@ export default function Ajustes() {
           </View>
         </Card>
 
-        {/* 3. Vibración & Hápticos */}
+        {/* 3. Vibración & Hápticos + Alarma de descanso */}
         <Card style={s.card}>
           <View style={s.rowBetween}>
             <View style={{ flex: 1, paddingRight: 10 }}>
@@ -233,6 +271,24 @@ export default function Ajustes() {
               trackColor={{ false: '#262A30', true: 'rgba(198, 244, 50, 0.4)' }}
             />
           </View>
+
+          <View style={[s.rowBetween, { borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 }]}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
+              <T bold size={16}>Alarma al terminar descanso</T>
+              <T muted size={13}>Suena con tono de alarma y vibra (incluso con pantalla apagada)</T>
+            </View>
+            <Switch
+              value={restAlarmSound}
+              onValueChange={handleToggleRestAlarm}
+              thumbColor={restAlarmSound ? C.primary : '#8A9099'}
+              trackColor={{ false: '#262A30', true: 'rgba(198, 244, 50, 0.4)' }}
+            />
+          </View>
+
+          <Pressable onPress={handleTestRestAlarm} style={s.testAlarmBtn}>
+            <Ionicons name="notifications-outline" size={16} color={C.primary} />
+            <T size={13} bold style={{ color: C.primary }}>Probar alarma</T>
+          </Pressable>
         </Card>
 
         {/* 4. Recordatorios de entrenamiento */}
@@ -336,6 +392,14 @@ export default function Ajustes() {
                 </>
               )}
             </Pressable>
+
+            <Pressable
+              onPress={handleResetAll}
+              style={[s.actionBtn, { borderWidth: 1, borderColor: C.danger + '66', backgroundColor: C.danger + '14' }]}
+            >
+              <Ionicons name="trash-outline" size={18} color={C.danger} />
+              <T size={15} bold style={{ color: C.danger }}>Vaciar todos los registros</T>
+            </Pressable>
           </View>
         </Card>
 
@@ -433,5 +497,17 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 8,
+  },
+  testAlarmBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(198, 244, 50, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(198, 244, 50, 0.35)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: R.sm,
   },
 });

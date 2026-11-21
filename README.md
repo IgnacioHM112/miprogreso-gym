@@ -50,9 +50,16 @@ La mayoría de las apps de entrenamiento en las tiendas actuales sufren de lo mi
 - **Sobrecarga progresiva ("La última vez"):** Muestra en gris tenue los kilos y repeticiones de la sesión anterior (`70 kg × 8`) para que siempre sepas qué peso superar.
 - **Feedback táctil háptico:** Botón de completado amplio (`✓`) que responde con vibración de confirmación al terminar cada serie.
 - **Series de calentamiento:** Marcador diferenciado (`C`) para no distorsionar tus cálculos de fuerza ni 1RM.
-- **Temporizador de descanso automático:** Cuenta regresiva que arranca sola al completar cada serie, con controles rápidos (`+15s`, `-15s`, saltar) y avisos sonoros/vibratorios al finalizar.
+- **Temporizador de descanso automático:** Cuenta regresiva que arranca sola al completar cada serie, con controles rápidos (`+15s`, `-15s`, saltar) ajustados al área segura y **alarma sonora + vibración** (`rest_alarm.wav`) que avisa incluso con la pantalla apagada.
 - **Flexibilidad en vivo:** Agregá o quitá series, o sumá nuevos ejercicios desde la biblioteca sobre la marcha si una máquina está ocupada.
 - **Resumen al terminar:** Cálculo instantáneo de kilos totales levantados (`volumen = peso × reps`) y tiempo total.
+
+### 🏃 Modo Runner (Correr / Caminar con GPS)
+- **Seguimiento GPS en tiempo real y segundo plano:** Registra distancia recorrida, tiempo activo, ritmo actual, ritmo medio, calorías y desnivel incluso con la pantalla bloqueada (servicio en primer plano en Android con recuperación automática ante cierre).
+- **Auto-pausa inteligente:** Detecta semáforos o frenadas para no distorsionar tu ritmo medio.
+- **Parciales y vueltas:** Splits automáticos cada 1 km con vibración + botón de vuelta manual, además de sugerencia automática de **Correr ↔ Caminar** según tu ritmo.
+- **Mapa interactivo (MapLibre + OpenFreeMap):** Recorrido en vivo y mapa de resumen con tramos coloreados por ritmo, marcadores por km tocables para inspeccionar tiempos y perfil altimétrico.
+- **Récords personales y exportación GPX:** Cálculo automático de mejor **1K**, **5K**, **10K** y salida más larga, barras semanales y exportación a archivo `.gpx` compatible con Strava o Garmin Connect.
 
 ### 📋 Gestión de Rutinas
 - Creación de rutinas ilimitadas (ej. *Pecho y Bíceps*, *Piernas*, *Push / Pull / Legs*).
@@ -64,6 +71,15 @@ La mayoría de las apps de entrenamiento en las tiendas actuales sufren de lo mi
 - Más de 30 ejercicios precargados divididos por grupo muscular (*Pecho, Espalda, Piernas, Hombros, Bíceps, Tríceps, Core, Calentamiento y Elongación*).
 - Soporte para ejercicios de **fuerza** (`kg × reps`) y por **tiempo** (`segundos`).
 - Creación y gestión de ejercicios personalizados.
+
+### 📈 Progreso, Calendario y Peso Corporal
+- **Calendario mensual integrado:** Marca tanto sesiones de gimnasio como salidas GPS, integrándose también en la meta semanal.
+- **Récords y gráficos:** Historial de sesiones, evolución cronológica de pesos, cálculo de 1RM estimado (Epley) y seguimiento de peso corporal con mínimo, máximo y delta.
+
+### ⚙️ Ajustes, Alarma y Respaldo
+- Meta semanal configurable, descanso predeterminado (45s–180s), hápticos y prueba directa de la alarma de descanso.
+- Recordatorios locales programables por días y horario.
+- Exportación e importación de copia de seguridad completa en **JSON** (incluyendo rutinas, sesiones, peso corporal y actividades/rutas GPS), además de reinicio seguro de registros.
 
 ---
 
@@ -89,8 +105,11 @@ Construida con la paleta deportiva de alto contraste **Lima Eléctrica**:
 | **Framework** | [React Native](https://reactnative.dev/) / [Expo SDK 57](https://expo.dev/) | Desarrollo nativo multiplataforma (Android & iOS) |
 | **Arquitectura** | [Expo Router](https://docs.expo.dev/router/introduction/) | Navegación nativa basada en sistema de archivos |
 | **Base de Datos** | [expo-sqlite](https://docs.expo.dev/versions/latest/sdk/sqlite/) | Almacenamiento relacional local offline |
-| **Estado Global** | [Zustand](https://github.com/pmndrs/zustand) | Manejo de sesión activa, cronómetro y temporizadores |
-| **Háptica y Avisos** | [expo-haptics](https://docs.expo.dev/versions/latest/sdk/haptics/) + notifications | Vibraciones y alertas de descanso |
+| **Estado Global** | [Zustand](https://github.com/pmndrs/zustand) | Manejo de sesión activa, cronómetro, GPS y temporizadores |
+| **GPS y Segundo Plano** | [expo-location](https://docs.expo.dev/versions/latest/sdk/location/) + [expo-task-manager](https://docs.expo.dev/versions/latest/sdk/task-manager/) | Registro de rutas con pantalla bloqueada y auto-pausa |
+| **Mapas** | [MapLibre React Native](https://maplibre.org/) + OpenFreeMap | Mapas oscuros sin API key con ruta coloreada por ritmo |
+| **Háptica y Avisos** | [expo-haptics](https://docs.expo.dev/versions/latest/sdk/haptics/) + [expo-notifications](https://docs.expo.dev/versions/latest/sdk/notifications/) | Vibraciones, alarma de descanso y recordatorios |
+| **Exportación** | [expo-file-system](https://docs.expo.dev/versions/latest/sdk/filesystem/) + [expo-sharing](https://docs.expo.dev/versions/latest/sdk/sharing/) | Backups completos en JSON y rutas en GPX |
 | **Tipografía** | [expo-google-fonts](https://github.com/expo/google-fonts) | Fuentes Inter & Space Grotesk |
 
 ---
@@ -99,7 +118,7 @@ Construida con la paleta deportiva de alto contraste **Lima Eléctrica**:
 
 ### Requisitos previos
 - Node.js (v18 o superior)
-- App **Expo Go** instalada en tu dispositivo móvil ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779))
+- Dispositivo **Android** con depuración USB (o cuenta de Expo para compilar en la nube con EAS Build). *(Las funciones nativas de mapas MapLibre, ubicación en segundo plano y sonido de alarma personalizado requieren build nativo / APK, no Expo Go).*
 
 ### Pasos
 
@@ -114,13 +133,16 @@ Construida con la paleta deportiva de alto contraste **Lima Eléctrica**:
    npm install
    ```
 
-3. **Iniciar el servidor de desarrollo:**
+3. **Compilar y ejecutar en Android (desarrollo local con USB):**
    ```bash
-   npx expo start
+   npx expo prebuild --platform android
+   npx expo run:android
    ```
 
-4. **Ejecutar en tu celular:**
-   - Abrí la app **Expo Go** y escaneá el código QR que figura en la consola.
+4. **Generar APK instalable independiente (para usar en el teléfono sin PC):**
+   ```bash
+   npx eas-cli@latest build --profile preview --platform android
+   ```
 
 ---
 
@@ -130,8 +152,9 @@ Construida con la paleta deportiva de alto contraste **Lima Eléctrica**:
 - [x] **Fase 1:** Sistema de diseño Lima Eléctrica, pantalla Hoy, CRUD de rutinas ilimitadas y biblioteca con buscador y filtros.
 - [x] **Fase 2:** Entrenamiento activo interactivo, cronómetro, "última vez", selector táctil de discos/reps sin teclado, timer de descanso automático con hápticos y guardado de sesiones.
 - [x] **Fase 3:** Calendario mensual integrado, historial de sesiones, gráficos de progresión, récords personales (PR) y cálculo de 1RM estimado (fórmula Epley).
-- [ ] **Fase 4:** Registro de peso corporal con evolución temporal, recordatorios locales configurables y exportación/importación de backup (JSON).
-- [ ] **Fase 5:** Pulido estético final, launcher icon nativo y generación de APK instalable independiente mediante EAS Build.
+- [x] **Fase 4:** Registro de peso corporal con evolución temporal, recordatorios locales configurables y exportación/importación de backup (JSON).
+- [x] **Fase 5:** Pulido estético final, launcher icon nativo y configuración de APK instalable independiente mediante EAS Build.
+- [x] **Fase 6 (Modo Runner + Alarma de Descanso):** Arreglo de controles de descanso y alarma sonora/vibración con pantalla apagada, pestaña **Correr** con GPS en primer y segundo plano, auto-pausa, mapa interactivo MapLibre coloreado por ritmo, PRs (1K/5K/10K), perfil de elevación, integración con calendario/backup y exportación GPX.
 
 ---
 

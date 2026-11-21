@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RestTimerBar } from '@/components/RestTimerBar';
 import { Btn, Card, T } from '@/components/ui';
@@ -21,6 +21,7 @@ import { ActiveExercise, useWorkoutStore, WorkoutSet } from '@/stores/workoutSto
 import { C, F, R } from '@/theme';
 
 export default function EntrenamientoActivo() {
+  const insets = useSafeAreaInsets();
   const isActive = useWorkoutStore((s) => s.isActive);
   const routineName = useWorkoutStore((s) => s.routineName);
   const startTime = useWorkoutStore((s) => s.startTime);
@@ -233,7 +234,7 @@ export default function EntrenamientoActivo() {
         </ScrollView>
 
         {/* Temporizador de descanso flotante */}
-        <View style={s.floatingRestContainer}>
+        <View style={[s.floatingRestContainer, { bottom: Math.max(20, insets.bottom + 12) }]}>
           <RestTimerBar />
         </View>
       </KeyboardAvoidingView>

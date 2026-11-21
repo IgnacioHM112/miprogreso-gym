@@ -1,11 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Card, T } from '@/components/ui';
+import { getMonthActivities, MonthActivitySummary } from '@/db/activityRepo';
 import { getMonthSessions } from '@/db/repo';
+import { formatDuration, formatKm } from '@/services/geo';
 import { vibrateImpact } from '@/services/notifications';
-import { C, F, R, WEEKDAYS_SHORT } from '@/theme';
+import { C, F, R } from '@/theme';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -25,14 +28,27 @@ export function MonthCalendar({ onSelectDateSession }: MonthCalendarProps) {
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   );
+  const [focusTick, setFocusTick] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setFocusTick((n) => n + 1);
+    }, [])
+  );
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1; // 1-12
 
-  // Sesiones de este mes
+  // Sesiones y salidas GPS de este mes
   const monthSessions = useMemo(() => {
+    void focusTick;
     return getMonthSessions(year, month);
-  }, [year, month]);
+  }, [year, month, focusTick]);
+
+  const monthActivities = useMemo(() => {
+    void focusTick;
+    return getMonthActivities(year, month);
+  }, [year, month, focusTick]);
 
   // Mapear por fecha YYYY-MM-DD
   const sessionsByDate = useMemo(() => {
@@ -43,6 +59,16 @@ export function MonthCalendar({ onSelectDateSession }: MonthCalendarProps) {
     });
     return map;
   }, [monthSessions]);
+
+  const activitiesByDate = useMemo(() => {
+    const map = new Map<string, MonthActivitySummary[]>();
+    monthActivities.forEach((act) => {
+      const list = map.get(act.dateKey);
+      if (list) list.push(act);
+      else map.set(act.dateKey, [act]);
+    });
+    return map;
+  }, [monthActivities]);
 
   const changeMonth = (delta: number) => {
     vibrateImpact();
@@ -66,6 +92,7 @@ export function MonthCalendar({ onSelectDateSession }: MonthCalendarProps) {
   }, [year, month]);
 
   const selectedSession = selectedDayKey ? sessionsByDate.get(selectedDayKey) : null;
+  const selectedActivities = selectedDayKey ? (activitiesByDate.get(selectedDayKey) ?? []) : [];
 
   return (
     <Card style={{ gap: 14 }}>
@@ -100,7 +127,7 @@ export function MonthCalendar({ onSelectDateSession }: MonthCalendarProps) {
             return <View key={`empty_${idx}`} style={s.dayCell} />;
           }
 
-          const hasWorkout = sessionsByDate.has(c.dateKey);
+          const hasWorkout = sessionsByDate.has(c.dateKey) || activitiesByDate.has(c.dateKey);
           const isSelected = selectedDayKey === c.dateKey;
           const isToday =
             c.dateKey ===
@@ -146,8 +173,8 @@ export function MonthCalendar({ onSelectDateSession }: MonthCalendarProps) {
 
       {/* Información del día seleccionado */}
       {selectedDayKey && (
-        <View style={s.dayDetailBox}>
-          {selectedSession ? (
+        <View style={[s.dayDetailBox, { gap: 8 }]}>
+          {selectedSession && (
             <Pressable
               onPress={() => onSelectDateSession?.(selectedSession.id)}
               style={s.sessionRow}
@@ -166,7 +193,33 @@ export function MonthCalendar({ onSelectDateSession }: MonthCalendarProps) {
                 <Ionicons name="chevron-forward" size={16} color={C.primary} />
               </View>
             </Pressable>
-          ) : (
+          )}
+
+          {selectedActivities.map((act) => (
+            <Pressable
+              key={`act_${act.id}`}
+              onPress={() => router.push({ pathname: '/actividad/[id]', params: { id: String(act.id) } })}
+              style={s.sessionRow}
+            >
+              <View style={s.sessionIcon}>
+                <Ionicons name={act.type === 'run' ? 'flash' : 'walk'} size={18} color={C.onPrimary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <T size={11} muted style={{ textTransform: 'uppercase' }}>
+                  {selectedDayKey} · {act.type === 'run' ? 'CORRER' : 'CAMINAR'}
+                </T>
+                <T size={15} bold>
+                  {act.title || (act.type === 'run' ? 'Carrera' : 'Caminata')} · {formatKm(act.distance_m)} km ({formatDuration(act.moving_sec)})
+                </T>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <T size={12} bold style={{ color: C.primary }}>Ver ruta</T>
+                <Ionicons name="chevron-forward" size={16} color={C.primary} />
+              </View>
+            </Pressable>
+          ))}
+
+          {!selectedSession && selectedActivities.length === 0 && (
             <View style={{ paddingVertical: 4 }}>
               <T size={13} muted style={{ textAlign: 'center' }}>
                 Sin entrenamientos registrados el {selectedDayKey}

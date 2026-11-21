@@ -67,19 +67,45 @@ export const setSetting = (key: string, value: string) =>
 // ---------- Estadísticas para "Hoy" ----------
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-/** Fechas (YYYY-MM-DD) entrenadas en la semana actual (lunes a domingo) */
+/** Fechas (YYYY-MM-DD) entrenadas en la semana actual (lunes a domingo), incluyendo fuerza y cardio GPS */
 export const trainedDaysThisWeek = () => {
   const now = new Date();
   const monday = new Date(now);
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
   const rows = db.getAllSync<{ d: string }>('SELECT DISTINCT substr(date,1,10) d FROM session WHERE substr(date,1,10) >= ?', ymd(monday));
-  return { monday, dates: new Set(rows.map((r) => r.d)) };
+  const dates = new Set(rows.map((r) => r.d));
+
+  const actRows = db.getAllSync<{ started_at: string }>(
+    "SELECT started_at FROM activity WHERE status = 'done' AND started_at >= ?",
+    monday.toISOString()
+  );
+  for (const a of actRows) {
+    const d = new Date(a.started_at);
+    if (!Number.isNaN(d.getTime()) && d >= monday) {
+      dates.add(ymd(d));
+    }
+  }
+  return { monday, dates };
 };
 
 export const daysSinceLastSession = (): number | null => {
   const r = db.getFirstSync<{ d: string | null }>('SELECT MAX(substr(date,1,10)) d FROM session');
-  if (!r?.d) return null;
-  const [y, m, d] = r.d.split('-').map(Number);
+  const a = db.getFirstSync<{ d: string | null }>("SELECT MAX(started_at) d FROM activity WHERE status = 'done'");
+
+  const candidates: string[] = [];
+  if (r?.d) candidates.push(r.d);
+  if (a?.d) {
+    const parsed = new Date(a.d);
+    if (!Number.isNaN(parsed.getTime())) {
+      candidates.push(ymd(parsed));
+    }
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort();
+  const latestYmd = candidates[candidates.length - 1];
+
+  const [y, m, d] = latestYmd.split('-').map(Number);
   const last = new Date(y, m - 1, d);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   return Math.round((today.getTime() - last.getTime()) / 86400000);
@@ -530,6 +556,18 @@ export const getHapticsEnabled = (): boolean =>
 export const setHapticsEnabled = (enabled: boolean) =>
   setSetting('haptics_enabled', enabled ? 'true' : 'false');
 
+export const getRestAlarmSoundEnabled = (): boolean =>
+  getSetting('rest_alarm_sound', 'true') === 'true';
+
+export const setRestAlarmSoundEnabled = (enabled: boolean) =>
+  setSetting('rest_alarm_sound', enabled ? 'true' : 'false');
+
+export const getAutoPauseEnabled = (): boolean =>
+  getSetting('auto_pause_enabled', 'true') === 'true';
+
+export const setAutoPauseEnabled = (enabled: boolean) =>
+  setSetting('auto_pause_enabled', enabled ? 'true' : 'false');
+
 export const getReminderSettings = () => ({
   enabled: getSetting('reminder_enabled', 'false') === 'true',
   time: getSetting('reminder_time', '19:00'),
@@ -554,6 +592,9 @@ export type GymBackupPayload = {
   session_sets: any[];
   body_weights: BodyWeightEntry[];
   settings: { key: string; value: string }[];
+  activities?: any[];
+  activity_points?: any[];
+  activity_laps?: any[];
 };
 
 export const exportDatabaseToJson = (): string => {
@@ -564,9 +605,12 @@ export const exportDatabaseToJson = (): string => {
   const session_sets = db.getAllSync<any>('SELECT * FROM session_set');
   const body_weights = db.getAllSync<BodyWeightEntry>('SELECT * FROM body_weight');
   const settings = db.getAllSync<{ key: string; value: string }>('SELECT * FROM settings');
+  const activities = db.getAllSync<any>('SELECT * FROM activity');
+  const activity_points = db.getAllSync<any>('SELECT * FROM activity_point');
+  const activity_laps = db.getAllSync<any>('SELECT * FROM activity_lap');
 
   const payload: GymBackupPayload = {
-    version: 1,
+    version: 2,
     app: 'MiProgreso Gym',
     exported_at: new Date().toISOString(),
     exercises,
@@ -576,6 +620,9 @@ export const exportDatabaseToJson = (): string => {
     session_sets,
     body_weights,
     settings,
+    activities,
+    activity_points,
+    activity_laps,
   };
 
   return JSON.stringify(payload, null, 2);
@@ -590,6 +637,9 @@ export const importDatabaseFromJson = (jsonStr: string): { success: boolean; mes
 
     db.withTransactionSync(() => {
       // 1. Limpiar datos existentes en orden de FK
+      db.runSync('DELETE FROM activity_lap');
+      db.runSync('DELETE FROM activity_point');
+      db.runSync('DELETE FROM activity');
       db.runSync('DELETE FROM session_set');
       db.runSync('DELETE FROM session');
       db.runSync('DELETE FROM plan_exercise');
@@ -663,6 +713,39 @@ export const importDatabaseFromJson = (jsonStr: string): { success: boolean; mes
           );
         }
       }
+
+      // 9. Insertar actividades GPS (si el respaldo las incluye, compatible con v1)
+      if (Array.isArray(data.activities)) {
+        for (const a of data.activities) {
+          db.runSync(
+            `INSERT INTO activity (id, type, started_at, ended_at, status, distance_m, moving_sec, elapsed_sec, avg_pace_sec_km, elev_gain_m, kcal, title, notes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            a.id, a.type, a.started_at, a.ended_at ?? null, a.status ?? 'done',
+            a.distance_m ?? 0, a.moving_sec ?? 0, a.elapsed_sec ?? 0,
+            a.avg_pace_sec_km ?? null, a.elev_gain_m ?? 0, a.kcal ?? 0,
+            a.title ?? null, a.notes ?? null
+          );
+        }
+      }
+      if (Array.isArray(data.activity_points)) {
+        for (const p of data.activity_points) {
+          db.runSync(
+            `INSERT INTO activity_point (id, activity_id, ts, lat, lng, alt, accuracy, speed, segment)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            p.id, p.activity_id, p.ts, p.lat, p.lng,
+            p.alt ?? null, p.accuracy ?? null, p.speed ?? null, p.segment ?? 0
+          );
+        }
+      }
+      if (Array.isArray(data.activity_laps)) {
+        for (const l of data.activity_laps) {
+          db.runSync(
+            `INSERT INTO activity_lap (id, activity_id, idx, kind, distance_m, duration_sec)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            l.id, l.activity_id, l.idx, l.kind, l.distance_m ?? 0, l.duration_sec ?? 0
+          );
+        }
+      }
     });
 
     return {
@@ -674,6 +757,7 @@ export const importDatabaseFromJson = (jsonStr: string): { success: boolean; mes
         sesiones: data.sessions?.length ?? 0,
         series: data.session_sets?.length ?? 0,
         pesos: data.body_weights?.length ?? 0,
+        actividades: data.activities?.length ?? 0,
       },
     };
   } catch (err: any) {
@@ -682,6 +766,20 @@ export const importDatabaseFromJson = (jsonStr: string): { success: boolean; mes
       message: `Error al procesar el archivo de copia: ${err?.message || 'Formato incorrecto'}`,
     };
   }
+};
+
+export const resetAllUserRecords = () => {
+  db.withTransactionSync(() => {
+    db.runSync('DELETE FROM activity_lap');
+    db.runSync('DELETE FROM activity_point');
+    db.runSync('DELETE FROM activity');
+    db.runSync('DELETE FROM session_set');
+    db.runSync('DELETE FROM session');
+    db.runSync('DELETE FROM plan_exercise');
+    db.runSync('DELETE FROM routine');
+    db.runSync('DELETE FROM body_weight');
+    db.runSync('DELETE FROM exercise WHERE is_custom = 1');
+  });
 };
 
 export { ymd };
